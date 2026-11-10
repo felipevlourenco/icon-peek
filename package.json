@@ -2,7 +2,7 @@
   "name": "icon-peek",
   "displayName": "IconPeek - Icon Hover Preview",
   "description": "See the rendered icon in the hover tooltip for icon components, <svg>, <img src=*.svg> and icon-font tags.",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "publisher": "felipelourenco",
   "icon": "images/icon.png",
   "license": "MIT",
@@ -99,6 +99,7 @@
     "watch": "node esbuild.mjs --watch",
     "dev": "npm run compile && code --new-window --extensionDevelopmentPath=\"$PWD\" fixtures",
     "test": "vitest run",
+    "vscode:prepublish": "npm run compile",
     "package": "vsce package"
   },
   "devDependencies": {

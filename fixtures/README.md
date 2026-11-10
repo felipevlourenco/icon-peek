@@ -46,4 +46,16 @@ Put the mouse on the quoted text. Line numbers are 1-based.
 | File:line | Hover | Expect |
 | --- | --- | --- |
 | `src/07-glyph-font.tsx:7`–`:10` | `name="cross"`, `"camera"`, `"search"` (written `'\u0057'`), `"menu"` (written `0x4d`) | X, camera, magnifier, three bars |
-| `src/07-glyph-font.tsx:11`, `:12` | `name="scanner"` (`'A1'`, two characters), `name="missing"` | **nothing** |
+| `src/07-glyph-font.tsx:12`, `:13` | `name="camera-plus"`, `name="search-alt"` (hyphenated names) | camera, magnifier |
+| `src/07-glyph-font.tsx:11`, `:14` | `name="scanner"` (`'A1'`, two characters), `name="missing"` | **nothing** |
+
+## Icon-font sets from `@expo/vector-icons`
+
+`src/08-vector-icons.tsx`: `<MaterialIcons name="add-a-photo" />`, `<FontAwesome5 name="mobile-alt" />` and friends. IconPeek reads the set's glyph map (`glyphmaps/*.json`) and draws the glyph from the `.ttf` shipped in the package. `react-native-vector-icons` and `@react-native-vector-icons/*` work the same way.
+
+| File:line | Hover | Expect |
+| --- | --- | --- |
+| `src/08-vector-icons.tsx:8` | `<MaterialIcons name="add-a-photo" />` | camera with a plus |
+| `src/08-vector-icons.tsx:9`–`:11` | `<FontAwesome5 name="mobile-alt" />`, `"github"`, `"home" solid` | phone, GitHub mark, house (FontAwesome picks the weight that has the glyph) |
+| `src/08-vector-icons.tsx:12` | `<VectorIcon name="add-a-photo" />` | same camera: the wrapper in `src/components/VectorIcon.tsx` forwards `name` |
+| `src/08-vector-icons.tsx:13` | `<MaterialIcons name="not-an-icon" />` | **nothing** |

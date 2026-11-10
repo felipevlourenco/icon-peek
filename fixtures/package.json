@@ -4,6 +4,7 @@
   "version": "0.0.0",
   "description": "Demo workspace for IconPeek. Run `npm install` here once.",
   "dependencies": {
+    "@expo/vector-icons": "^15.1.1",
     "@fortawesome/fontawesome-free": "*",
     "@heroicons/react": "*",
     "@mui/icons-material": "*",

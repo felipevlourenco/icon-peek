@@ -475,6 +475,9 @@ const glyphs = {
   scanner: 'A1',
   esc: '\\u0042',
   hex: 0x43,
+  'mobile-alt': 'A',
+  "add-a-photo": 0x42,
+  'add_a_photo': 'C',
 } as const;
 
 export type GlyphName = keyof typeof glyphs;
@@ -493,7 +496,7 @@ import glyphMap from './glyphmap.json';
 import font from '../fonts/f.ttf';
 export const Icon = createIconSet(glyphMap, 'x', font);
 `,
-    'src/components/glyphmap.json': JSON.stringify({ at: 65, e: 'B', two: 'ab' }),
+    'src/components/glyphmap.json': JSON.stringify({ at: 65, e: 'B', two: 'ab', 'mobile-alt': 67 }),
     'src/components/twofonts.tsx': `import a from '../fonts/f.ttf';\nimport b from '../fonts/g.ttf';\nconst m = { at: 'A' };\nexport const Icon = createIconSet(m, 'x', b);\n`,
   });
   mk(join(w.root, 'src/assets/fonts'), { recursive: true });
@@ -520,6 +523,13 @@ export const Icon = createIconSet(glyphMap, 'x', font);
     expect(fh(use + `<Icon name="hex" />`)?.svg).toBe(fontSvg(0x43));
   });
 
+  it('names with hyphens / underscores (`mobile-alt`, `add-a-photo`)', () => {
+    expect(fh(use + `<Icon name="mobile-alt" size={15} />`)?.svg).toBe(fontSvg(0x41));
+    expect(fh(use + `<Icon name="add-a-photo" size={30} color="#fff" />`)?.svg).toBe(fontSvg(0x42));
+    expect(fh(use + `<Icon name="add_a_photo" />`)?.svg).toBe(fontSvg(0x43));
+    expect(fh(`import {Icon} from '@/components/jsonicon';\n<Icon name="mobile-alt" />`)?.svg).toBe(fontSvg(0x43));
+  });
+
   it('shows nothing for multi-character (ligature) values, unknown names and dynamic names', () => {
     expect(fh(use + `<Icon name="scanner" />`)).toBeNull(); // 'A1'
     expect(fh(use + `<Icon name="nope" />`)).toBeNull();
@@ -542,6 +552,70 @@ export const Icon = createIconSet(glyphMap, 'x', font);
     const node = fontGlyph(DEMO_FONT, cp)!;
     return renderPreview(node, 48, 200_000);
   }
+});
+
+describe('icon-font sets: @expo/vector-icons, react-native-vector-icons', () => {
+  const pkg = (n: string) => JSON.stringify({ name: n, version: '1.0.0' });
+  const EXPO = 'node_modules/@expo/vector-icons/build/vendor/react-native-vector-icons';
+  const w = workspace({
+    'node_modules/@expo/vector-icons/package.json': pkg('@expo/vector-icons'),
+    [`${EXPO}/glyphmaps/MaterialIcons.json`]: JSON.stringify({ 'add-a-photo': 65, home: 66 }),
+    [`${EXPO}/glyphmaps/FontAwesome5Free.json`]: JSON.stringify({ 'mobile-alt': 67, github: 68, home: 66 }),
+    [`${EXPO}/glyphmaps/FontAwesome5Free_meta.json`]: JSON.stringify({ brands: ['github'], regular: ['home'], solid: ['mobile-alt', 'home'] }),
+    [`${EXPO}/Fonts/FontAwesome5_Regular.ttf`]: 'not a font', // tells us when the regular weight was (wrongly) picked
+    'node_modules/react-native-vector-icons/package.json': pkg('react-native-vector-icons'),
+    'node_modules/react-native-vector-icons/glyphmaps/MaterialIcons.json': JSON.stringify({ 'add-a-photo': 66 }),
+    'node_modules/@react-native-vector-icons/material-icons/package.json': pkg('@react-native-vector-icons/material-icons'),
+    'node_modules/@react-native-vector-icons/material-icons/glyphmaps/MaterialIcons.json': JSON.stringify({ 'add-a-photo': 67 }),
+    'src/wrap.tsx': `import { MaterialIcons } from '@expo/vector-icons';\nexport const Icon = ({ name, size }) => <MaterialIcons name={name} size={size} />;\n`,
+    'src/wrap-solid.tsx': `import { FontAwesome5 } from '@expo/vector-icons';\nexport const Icon = ({ name }) => <FontAwesome5 name={name} solid />;\n`,
+    'src/wrap-two.tsx': `import { MaterialIcons, FontAwesome5 } from '@expo/vector-icons';\nexport const Icon = ({ name }) => <MaterialIcons name={name} />;\n`,
+    'src/wrap-map.tsx': `import { MaterialIcons } from '@expo/vector-icons';\nconst m = { a: 'home' };\nexport const Icon = ({ name }) => <MaterialIcons name={m[name]} />;\n`,
+  });
+  for (const f of ['MaterialIcons', 'FontAwesome5_Solid', 'FontAwesome5_Brands']) {
+    mk(join(w.root, EXPO, 'Fonts'), { recursive: true });
+    copyFileSync(DEMO_FONT, join(w.root, EXPO, 'Fonts', `${f}.ttf`));
+  }
+  for (const d of ['node_modules/react-native-vector-icons/Fonts/MaterialIcons.ttf', 'node_modules/@react-native-vector-icons/material-icons/fonts/MaterialIcons.ttf']) {
+    mk(join(w.root, d, '..'), { recursive: true });
+    copyFileSync(DEMO_FONT, join(w.root, d));
+  }
+  afterAll(w.cleanup);
+  const h = (imp: string, jsx: string, file = 'src/screen.tsx') => hover(w.root, file, `${imp}\n${jsx}`, '<', 2);
+  const g = (cp: number) => renderPreview(fontGlyph(DEMO_FONT, cp)!, 48, 200_000);
+  const expo = `import { MaterialIcons, FontAwesome5 } from '@expo/vector-icons';`;
+
+  it('draws `<MaterialIcons name="add-a-photo" />` from the set\'s own font', () => {
+    const r = h(expo, '<MaterialIcons name="add-a-photo" size={30} color="#fff" />');
+    expect(r?.svg).toBe(g(65));
+    expect(r?.name).toBe('add-a-photo');
+    expect(r?.source).toBe('@expo/vector-icons/MaterialIcons');
+    expect(h(expo, '<MaterialIcons name="nope" />')).toBeNull();
+    expect(h(expo, '<MaterialIcons name={n} />')).toBeNull();
+  });
+
+  it('FontAwesome picks the weight like the library: asked one, else the first that has the glyph', () => {
+    expect(h(expo, '<FontAwesome5 name="mobile-alt" size={15} />')?.svg).toBe(g(67)); // not in regular -> solid
+    expect(h(expo, '<FontAwesome5 name="github" />')?.svg).toBe(g(68)); // -> brands
+    expect(h(expo, '<FontAwesome5 name="home" />')).toBeNull(); // regular, and that font is unreadable here
+    expect(h(expo, '<FontAwesome5 name="home" solid />')?.svg).toBe(g(66));
+    expect(h(expo, '<FontAwesome5 name="nope" solid />')).toBeNull();
+  });
+
+  it('default import from a subpath, react-native-vector-icons, and per-family packages', () => {
+    expect(h(`import Icon from '@expo/vector-icons/MaterialIcons';`, '<Icon name="add-a-photo" />')?.svg).toBe(g(65));
+    expect(h(`import Icon from 'react-native-vector-icons/MaterialIcons';`, '<Icon name="add-a-photo" />')?.svg).toBe(g(66));
+    expect(h(`import { MaterialIcons } from '@react-native-vector-icons/material-icons';`, '<MaterialIcons name="add-a-photo" />')?.svg).toBe(g(67));
+    expect(h(`import Icon from 'react-native-vector-icons/Ionicons';`, '<Icon name="home" />')).toBeNull(); // not installed
+  });
+
+  it('a project wrapper that passes `name` straight to its one vector-icons set', () => {
+    const use = (c: string, jsx: string) => h(`import { Icon } from './${c}';`, jsx);
+    expect(use('wrap', '<Icon name="add-a-photo" size={30} />')?.svg).toBe(g(65));
+    expect(use('wrap-solid', '<Icon name="mobile-alt" />')?.svg).toBe(g(67));
+    expect(use('wrap-two', '<Icon name="add-a-photo" />')).toBeNull(); // two sets: unknowable
+    expect(use('wrap-map', '<Icon name="a" />')).toBeNull(); // name is rewritten before it reaches the set
+  });
 });
 
 /** A 3-glyph TrueType font built by hand: 'A' = triangle, 'B' = composite of A shifted right by 200. */

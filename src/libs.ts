@@ -2,9 +2,10 @@
 // extracts icon data from the SOURCE TEXT of the package files. Nothing is require()d or evaluated.
 // Layouts verified against: lucide-react 1.71.0, react-icons 5.7.0, @heroicons/react 2.2.0,
 // @mui/icons-material 9.5.0, @fortawesome/fontawesome-free 7.3.1, bootstrap-icons 1.13.2.
-import { statSync } from 'node:fs';
+import { readdirSync, statSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { cached, readText } from './cache';
+import { fontGlyph } from './font';
 import { parseJs, parseSvgDocument, type SvgNode } from './parse';
 import { mkNode } from './svg';
 
@@ -196,4 +197,60 @@ export function materialIcon(fromFile: string, roots: string[], ligature: string
   const pascal = ligature.split('_').map((w) => w[0].toUpperCase() + w.slice(1)).join('');
   const f = dir && mui(dir, pascal + variant, maxBytes);
   return f ? { ...f, name: ligature } : null;
+}
+
+// ---------------------------------------------------------------- icon-font sets: @expo/vector-icons, react-native-vector-icons
+// <MaterialIcons name="add-a-photo" />: glyphmaps/<Set>.json maps the name to a code point, the .ttf next to it draws it.
+// Layouts verified against @expo/vector-icons 15.1.1, react-native-vector-icons 10.3.0, @react-native-vector-icons/{material-icons,fontawesome5} 14.0.0.
+
+const VI_SPEC = /^(?:(@expo\/vector-icons|react-native-vector-icons)|@react-native-vector-icons\/([a-z0-9-]+))(?:\/([A-Za-z0-9]+))?$/;
+export const isVectorIcons = (spec: string) => VI_SPEC.test(spec);
+const FA_FONT: Record<string, string> = { solid: 'Solid', regular: 'Regular', brand: 'Brands' };
+
+/**
+ * `style` is the FontAwesome weight prop (solid | regular | brand | light) when written on the tag.
+ * Like the library, FontAwesome falls back to the first weight that has the glyph when the asked one doesn't.
+ */
+export function vectorIcon(spec: string, imported: string, name: string, style: string | null, fromFile: string, roots: string[]): Found | null {
+  const m = VI_SPEC.exec(spec);
+  if (!m) return null;
+  const [, pkg = `@react-native-vector-icons/${m[2]}`, slug, sub] = m;
+  const dir = findPackage(fromFile, pkg, roots);
+  if (!dir) return null;
+  const [maps, fonts] = slug ? ['glyphmaps', 'fonts'] : pkg === '@expo/vector-icons' ? ['build/vendor/react-native-vector-icons/glyphmaps', 'build/vendor/react-native-vector-icons/Fonts'] : ['glyphmaps', 'Fonts'];
+  // set: `@expo/vector-icons` + named import, `<pkg>/Set` + default import, or the one set of a per-family package
+  let set = slug ? undefined : sub ?? imported;
+  if (slug) {
+    try {
+      set = readdirSync(join(dir, maps)).map((f) => f.replace(/\.json$/, '')).find((f) => f.toLowerCase() === slug.replace(/-/g, ''));
+    } catch {
+      return null;
+    }
+  }
+  if (!set || !/^[A-Za-z0-9]+$/.test(set)) return null;
+  const json = (file: string) => {
+    const t = isFile(file) ? readText(file, 5_000_000) : null;
+    try {
+      return t ? (JSON.parse(t) as Record<string, unknown>) : null;
+    } catch {
+      return null;
+    }
+  };
+  const glyphs = [`${set}Free.json`, `${set}.json`].map((f) => json(join(dir, maps, f))).find((x) => x);
+  const code = glyphs?.[name];
+  if (typeof code !== 'number') return null;
+  // FontAwesome sets have one font per weight and a *_meta.json listing which weight has which glyph
+  const meta = [`${set}Free_meta.json`, `${set}_meta.json`].map((f) => json(join(dir, maps, f))).find((x) => x) as Record<string, string[]> | undefined;
+  let font = `${set}.ttf`;
+  if (meta) {
+    const fam = (k: string) => (k === 'brands' ? 'brand' : k);
+    const want = style === 'light' ? 'regular' : style ?? 'regular';
+    const has = (k: string) => meta[k === 'brand' ? (meta.brands ? 'brands' : 'brand') : k]?.includes(name);
+    const weight = has(want) ? want : Object.keys(meta).map(fam).find(has);
+    if (!weight || !FA_FONT[weight]) return null;
+    font = `${set}_${FA_FONT[weight]}.ttf`;
+  }
+  const file = join(dir, fonts, font);
+  const node = isFile(file) ? fontGlyph(file, code) : null;
+  return node ? { node, name, source: `${pkg}/${set}` } : null;
 }

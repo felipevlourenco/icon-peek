@@ -9,6 +9,8 @@ export function GlyphDemo() {
       <GlyphIcon name="search" />
       <GlyphIcon name="menu" />
       <GlyphIcon name="scanner" />
+      <GlyphIcon name="camera-plus" size={15} />
+      <GlyphIcon name="search-alt" size={30} color="#fff" />
       <GlyphIcon name="missing" />
     </div>
   );

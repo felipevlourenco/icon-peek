@@ -11,6 +11,8 @@ const glyphs = {
   search: '\u0057',
   menu: 0x4d,
   scanner: 'A1',
+  'camera-plus': 'B',
+  'search-alt': 0x57,
 } as const;
 
 const GlyphSet = createIconSet(glyphs, 'demo-icons', font);

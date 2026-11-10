@@ -4,7 +4,7 @@ import { aliasBases } from './alias';
 import { readText } from './cache';
 import { fontGlyph } from './font';
 import {
-  bootstrapIcon, fontAwesomeIcon, libraryIcon, loadSvg, materialIcon, type Found,
+  bootstrapIcon, fontAwesomeIcon, isVectorIcons, libraryIcon, loadSvg, materialIcon, vectorIcon, type Found,
 } from './libs';
 import { attrValue, bindTag, findTagAt, parseImports, parseMarkup, type Binding, type SvgNode, type Tag } from './parse';
 import { renderPreview } from './svg';
@@ -87,8 +87,13 @@ function locate(tag: Tag, req: Request, c: Ctx): Found | null {
     if (f) return f;
   }
   const b = bindTag(tag.name, imports);
-  return b && fromBinding(b, req.file, c);
+  const name = attrValue(tag, 'name'); // <MaterialIcons name="add-a-photo" />
+  const v = b && name && SAFE_NAME.test(name) && vectorIcon(b.source, b.imported, name, styleOf(tag), req.file, c.roots);
+  return v || (b && fromBinding(b, req.file, c));
 }
+
+/** FontAwesome weight written on the tag: `<FontAwesome5 name="x" solid />` */
+const styleOf = (tag: Tag) => ['solid', 'regular', 'brand', 'light'].find((s) => tag.attrs.some((a) => a.name === s && (a.value === '' || a.value === 'true'))) ?? null;
 
 // ---------------------------------------------------------------- files
 
@@ -196,6 +201,8 @@ function customIcon(tag: Tag, props: string[], imports: Binding[], req: Request,
     if (comp) {
       const f = fromComponent(comp.text, comp.file, value, c);
       if (f) return f;
+      const w = wrapsVectorIcons(comp, prop, value, c);
+      if (w) return w;
     }
     const dir = req.config.nameToFolder[`${tag.name}.${prop}`] ?? req.config.nameToFolder[tag.name];
     if (dir) {
@@ -204,6 +211,15 @@ function customIcon(tag: Tag, props: string[], imports: Binding[], req: Request,
     }
   }
   return null;
+}
+
+/** `const Icon = ({ name }) => <MaterialIcons name={name} />`: the wrapper hands the name straight to the one vector-icons set it imports. */
+function wrapsVectorIcons(comp: { file: string; text: string }, prop: string, value: string, c: Ctx): Found | null {
+  const sets = parseImports(comp.text).filter((b) => isVectorIcons(b.source));
+  if (sets.length !== 1) return null; // several sets: which one draws it is unknowable
+  const m = new RegExp(`<${esc(sets[0].local)}\\b[^<>]*\\bname=\\{\\s*(?:props\\.)?${esc(prop)}\\s*\\}`).exec(comp.text);
+  const inner = m && findTagAt(comp.text, m.index + 1);
+  return inner ? vectorIcon(sets[0].source, sets[0].imported, value, styleOf(inner), comp.file, c.roots) : null;
 }
 
 /** Source text of the file that defines the component: follow a relative import, or this very file. */

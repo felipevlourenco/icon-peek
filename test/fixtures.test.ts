@@ -82,6 +82,15 @@ const rows: [string, string, string | null][] = [
   ['src/07-glyph-font.tsx', '<GlyphIcon name="menu"', '<path d="M'],
   ['src/07-glyph-font.tsx', '<GlyphIcon name="scanner"', null],
   ['src/07-glyph-font.tsx', '<GlyphIcon name="missing"', null],
+  ['src/07-glyph-font.tsx', '<GlyphIcon name="camera-plus"', '<path d="M'],
+  ['src/07-glyph-font.tsx', '<GlyphIcon name="search-alt"', '<path d="M'],
+  // 8. @expo/vector-icons sets (glyph map + .ttf read from the package)
+  ['src/08-vector-icons.tsx', '<MaterialIcons name="add-a-photo"', '<path d="M'],
+  ['src/08-vector-icons.tsx', '<FontAwesome5 name="mobile-alt"', '<path d="M'],
+  ['src/08-vector-icons.tsx', '<FontAwesome5 name="github"', '<path d="M'],
+  ['src/08-vector-icons.tsx', '<FontAwesome5 name="home" solid', '<path d="M'],
+  ['src/08-vector-icons.tsx', '<VectorIcon name="add-a-photo"', '<path d="M'],
+  ['src/08-vector-icons.tsx', '<MaterialIcons name="not-an-icon"', null],
   // 6. other languages
   ['src/06-frameworks/Card.vue', '<StarIcon />', 'M12 2l3.09 6.26'],
   ['src/06-frameworks/Card.vue', '<i class="bi bi-house"', 'M8.707 1.5'],
