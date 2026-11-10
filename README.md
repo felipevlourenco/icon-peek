@@ -15,7 +15,7 @@
 
 ## Features
 
-- **Works on what you already write:** `<SearchIcon />`, `<Icon name="search" />`, `<img src="x.svg">`, `<use href="sprite.svg#id">`, inline `<svg>`, `<i class="fa-solid fa-house">`.
+- **Works on what you already write:** `<SearchIcon />`, `<Icon name="search" />`, `<img>` tags pointing at an SVG, `<use href="sprite.svg#id">`, inline `<svg>`, `<i class="fa-solid fa-house">`.
 - **Reads your real icon sources:** local `.svg` files, `lucide-react`, `react-icons`, `@heroicons/react`, `@mui/icons-material`, Font Awesome, Bootstrap Icons and Material Icons.
 - **Understands your own `<Icon name="…" />`:** follows the import to the component and finds the name-to-icon mapping (object map, `switch`, or a folder of SVGs). A setting covers the rest.
 - **Never lies:** if an icon can't be resolved with confidence there is no hover at all. No placeholders, no wrong icons.
@@ -43,7 +43,7 @@ Then open any file in a supported language and hover an icon tag. There is nothi
 
 | Source | What is resolved |
 | --- | --- |
-| Local SVG files | `import X from './x.svg'` (also `?react`, `?url`, `?component`, `{ ReactComponent as X }`) used as `<X />`; `<img src="./x.svg">`, `<img src={importedUrl}>`; `<use href="sprite.svg#id">`. Paths resolve relative to the file, then the workspace root, then `public/`. |
+| Local SVG files | `import X from './x.svg'` (also `?react`, `?url`, `?component`, `{ ReactComponent as X }`) used as `<X />`; `<img>` tags whose `src` is an SVG path or an imported URL; `<use href="sprite.svg#id">`. Paths resolve relative to the file, then the workspace root, then `public/`. |
 | `lucide-react` | Named, aliased (`House as Home`) and namespace (`<Lucide.Star />`) imports. |
 | `react-icons` | Per-pack subpaths (`react-icons/fa`, `/fa6`, `/fi`, …). |
 | `@heroicons/react` | `…/24/outline`, `…/24/solid`, `…/20/solid`, `…/16/solid`. |
