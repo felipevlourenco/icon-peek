@@ -39,3 +39,11 @@ Put the mouse on the quoted text. Line numbers are 1-based.
 
 **Live change on disk:** hover `src/01-local-svg.tsx:10` (star), edit the `d="…"` in `src/assets/icons/star.svg`, save, hover again. The new shape shows on the next hover.
 
+## Project icon font (`.ttf`)
+
+`src/components/GlyphIcon.tsx` mirrors a React Native `createIconSet` component: a name-to-character map and a `.ttf` imported through the `@/` alias (declared in `tsconfig.json`). IconPeek draws the glyph outline straight from the font file.
+
+| File:line | Hover | Expect |
+| --- | --- | --- |
+| `src/07-glyph-font.tsx:7`–`:10` | `name="cross"`, `"camera"`, `"search"` (written `'\u0057'`), `"menu"` (written `0x4d`) | X, camera, magnifier, three bars |
+| `src/07-glyph-font.tsx:11`, `:12` | `name="scanner"` (`'A1'`, two characters), `name="missing"` | **nothing** |

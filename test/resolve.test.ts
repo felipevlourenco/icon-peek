@@ -418,3 +418,192 @@ describe('cache', () => {
     }
   });
 });
+
+// ---------------------------------------------------------------- tsconfig aliases + icon fonts (.ttf glyphs)
+
+import { copyFileSync, mkdirSync as mk } from 'node:fs';
+import { resolve as res } from 'node:path';
+import { parseJsonc } from '../src/alias';
+import type { SvgNode } from '../src/parse';
+import { fontGlyph } from '../src/font';
+
+const DEMO_FONT = res(__dirname, '../fixtures/src/assets/fonts/demo-icons.ttf');
+
+describe('parseJsonc', () => {
+  it('accepts comments and trailing commas but leaves strings alone', () => {
+    expect(parseJsonc(`{ // c\n "a": "x // y, ]", /* b */ "b": [1, 2,], }`)).toEqual({ a: 'x // y, ]', b: [1, 2] });
+  });
+});
+
+describe('tsconfig / jsconfig aliases', () => {
+  const w = workspace({
+    'tsconfig.json': `{ // aliases\n "compilerOptions": { "baseUrl": ".", "paths": { "@/*": ["./src/*"], "~icons/*": ["src/assets/*"], }, }, }`,
+    'src/assets/star.svg': svgFile('M1 1 ALIASED'),
+    'src/components/Panel.tsx': '',
+    'packages/web/jsconfig.json': `{ "compilerOptions": { "paths": { "#/*": ["./lib/*"] } } }`,
+    'packages/web/lib/bell.svg': svgFile('M2 2 JSCONFIG'),
+  });
+  afterAll(w.cleanup);
+  const ah = (file: string, text: string, needle: string, config = {}) => hover(w.root, file, text, needle, 2, config);
+
+  it('resolves @/ and custom prefixes for svg imports and <img>', () => {
+    expect(ah('src/App.tsx', `import S from '@/assets/star.svg?react';\n<S />`, '<S')?.svg).toContain('ALIASED');
+    expect(ah('src/App.tsx', `import S from '~icons/star.svg';\n<S />`, '<S')?.svg).toContain('ALIASED');
+    expect(ah('src/App.tsx', `<img src="@/assets/star.svg" />`, '<img')?.svg).toContain('ALIASED');
+  });
+
+  it('uses the nearest config (jsconfig in a sub-package) and shows nothing for unmatched aliases', () => {
+    expect(ah('packages/web/App.jsx', `import B from '#/bell.svg';\n<B />`, '<B')?.svg).toContain('JSCONFIG');
+    expect(ah('src/App.tsx', `import B from '#/bell.svg';\n<B />`, '<B')).toBeNull();
+  });
+});
+
+describe('project icon fonts (createIconSet + .ttf)', () => {
+  const w = workspace({
+    'tsconfig.json': `{ "compilerOptions": { "baseUrl": ".", "paths": { "@/*": ["./src/*"] } } }`,
+    // the component shape from a real React Native app: `as const` map, derived glyphMap, alias imports
+    'src/components/icon.tsx': `import createIconSet from '@expo/vector-icons/createIconSet';
+import React from 'react';
+
+import iconFont from '@/assets/fonts/demo-icons.ttf';
+import theme from '@/config/theme';
+
+const glyphs = {
+  arrowright: 'A',
+  cross: 'F',
+  euro: 'X',
+  scanner: 'A1',
+  esc: '\\u0042',
+  hex: 0x43,
+} as const;
+
+export type GlyphName = keyof typeof glyphs;
+
+const glyphMap: Record<GlyphName, string> = Object.keys(glyphs).reduce((acc, key) => {
+  const k = key as GlyphName;
+  acc[k] = (glyphs[k] as unknown as {character?: string}).character || glyphs[k];
+  return acc;
+}, {} as Record<GlyphName, string>);
+
+const GlyphIcon = createIconSet(glyphMap, 'demo-icons', iconFont);
+export const Icon = ({name, size = 40, color}) => <GlyphIcon name={name} size={size} color={color} />;
+`,
+    'src/components/jsonicon.tsx': `import createIconSet from '@expo/vector-icons/createIconSet';
+import glyphMap from './glyphmap.json';
+import font from '../fonts/f.ttf';
+export const Icon = createIconSet(glyphMap, 'x', font);
+`,
+    'src/components/glyphmap.json': JSON.stringify({ at: 65, e: 'B', two: 'ab' }),
+    'src/components/twofonts.tsx': `import a from '../fonts/f.ttf';\nimport b from '../fonts/g.ttf';\nconst m = { at: 'A' };\nexport const Icon = createIconSet(m, 'x', b);\n`,
+  });
+  mk(join(w.root, 'src/assets/fonts'), { recursive: true });
+  mk(join(w.root, 'src/fonts'), { recursive: true });
+  copyFileSync(DEMO_FONT, join(w.root, 'src/assets/fonts/demo-icons.ttf'));
+  copyFileSync(DEMO_FONT, join(w.root, 'src/fonts/f.ttf'));
+  writeFileSync(join(w.root, 'src/fonts/g.ttf'), 'not a font');
+  afterAll(w.cleanup);
+  const fh = (text: string, needle = '<Icon', cfg: Record<string, unknown> = {}) => hover(w.root, 'src/screen.tsx', text, needle, 2, cfg);
+  const use = `import {Icon} from '@/components/icon';\n`;
+
+  it('draws the glyph for `<Icon name="…" />` straight from the .ttf (alias import, `as const` map)', () => {
+    const r = fh(use + `<Icon name="cross" size={10} color={c} />`);
+    expect(r?.svg).toMatch(/<path d="M[\d. -]+[LQ]/);
+    expect(r?.name).toBe('cross');
+    expect(r?.source).toBe(join('src', 'assets', 'fonts', 'demo-icons.ttf'));
+    expect(r?.svg).not.toMatch(/currentColor/);
+    // different names -> different outlines
+    expect(fh(use + `<Icon name="arrowright" />`)?.svg).not.toBe(r?.svg);
+  });
+
+  it('understands escaped characters and numeric code points', () => {
+    expect(fh(use + `<Icon name="esc" />`)?.svg).toBe(fontSvg(0x42));
+    expect(fh(use + `<Icon name="hex" />`)?.svg).toBe(fontSvg(0x43));
+  });
+
+  it('shows nothing for multi-character (ligature) values, unknown names and dynamic names', () => {
+    expect(fh(use + `<Icon name="scanner" />`)).toBeNull(); // 'A1'
+    expect(fh(use + `<Icon name="nope" />`)).toBeNull();
+    expect(fh(use + `<Icon name={n} />`)).toBeNull();
+  });
+
+  it('json glyph maps next to the font', () => {
+    const j = `import {Icon} from '@/components/jsonicon';\n`;
+    expect(fh(j + `<Icon name="at" />`)?.svg).toBe(fontSvg(0x41));
+    expect(fh(j + `<Icon name="e" />`)?.svg).toBe(fontSvg(0x42));
+    expect(fh(j + `<Icon name="two" />`)).toBeNull();
+  });
+
+  it('refuses when the font cannot be read or is ambiguous', () => {
+    expect(fh(`import {Icon} from '@/components/twofonts';\n<Icon name="at" />`)).toBeNull(); // picks g.ttf: not a font
+  });
+
+  function fontSvg(cp: number) {
+    // same glyph, rendered through the same pipeline, for exact comparison
+    const node = fontGlyph(DEMO_FONT, cp)!;
+    return renderPreview(node, 48, 200_000);
+  }
+});
+
+/** A 3-glyph TrueType font built by hand: 'A' = triangle, 'B' = composite of A shifted right by 200. */
+function tinyFont(): Buffer {
+  const i16 = (...n: number[]) => Buffer.from(n.flatMap((v) => [(v >> 8) & 255, v & 255]));
+  const glyph1 = Buffer.concat([i16(1, 0, 0, 100, 100, 2, 0), Buffer.from([1, 1, 1]), i16(0, 100, -50), i16(0, 0, 100), Buffer.from([0])]); // 30 bytes
+  const glyph2 = Buffer.concat([i16(-1, 200, 0, 300, 100), i16(0x0003, 1, 200, 0)]); // 18 bytes
+  const glyf = Buffer.concat([glyph1, glyph2]);
+  const loca = i16(0, 0, glyph1.length / 2, glyf.length / 2);
+  const head = Buffer.alloc(54);
+  const maxp = Buffer.concat([i16(0, 0), i16(3)]);
+  const cmap = Buffer.concat([i16(0, 1, 3, 1), Buffer.from([0, 0, 0, 12]), i16(4, 32, 0, 4, 4, 1, 0), i16(66, 0xffff, 0, 65, 0xffff, -64, 1, 0, 0)]);
+  const tables: [string, Buffer][] = [['head', head], ['maxp', maxp], ['cmap', cmap], ['loca', loca], ['glyf', glyf]];
+  let off = 12 + 16 * tables.length;
+  const dir = [i16(1, 0, tables.length, 0, 0, 0)]; // sfnt version 0x00010000, numTables, 3 unused
+  const bodies: Buffer[] = [];
+  for (const [tag, body] of tables) {
+    const rec = Buffer.alloc(16);
+    rec.write(tag, 0, 'latin1');
+    rec.writeUInt32BE(off, 8);
+    rec.writeUInt32BE(body.length, 12);
+    dir.push(rec);
+    bodies.push(body);
+    off += body.length;
+  }
+  return Buffer.concat([...dir, ...bodies]);
+}
+
+describe('fontGlyph (ttf parser)', () => {
+  const w = workspace({});
+  writeFileSync(join(w.root, 'tiny.ttf'), tinyFont());
+  afterAll(w.cleanup);
+
+  it('reads a simple glyph (hand-built font): triangle, y flipped for svg', () => {
+    const g = fontGlyph(join(w.root, 'tiny.ttf'), 65)!;
+    expect(g.attrs.viewBox).toBe('0 -100 100 100');
+    expect((g.children[0] as SvgNode).attrs.d).toBe('M0 0L100 0L50 -100Z');
+  });
+
+  it('reads a composite glyph: component moved by its offset', () => {
+    const g = fontGlyph(join(w.root, 'tiny.ttf'), 66)!;
+    expect(g.attrs.viewBox).toBe('200 -100 100 100');
+    expect((g.children[0] as SvgNode).attrs.d).toBe('M200 0L300 0L250 -100Z');
+  });
+
+  it('reads a real icon font glyph', () => {
+    const g = fontGlyph(DEMO_FONT, 'F'.codePointAt(0)!)!;
+    expect(g.attrs.viewBox).toMatch(/^[-\d. ]+$/);
+    expect((g.children[0] as SvgNode).attrs.d).toMatch(/^M[\d. -]+[LQ]/);
+  });
+
+  it('returns null for missing glyphs, missing files and non-ttf data', () => {
+    expect(fontGlyph(DEMO_FONT, 0x1f600)).toBeNull();
+    expect(fontGlyph(join(w.root, 'tiny.ttf'), 67)).toBeNull();
+    expect(fontGlyph(join(tmpdirFor(), 'nope.ttf'), 65)).toBeNull();
+    writeFileSync(join(w.root, 'x.ttf'), 'OTTO....garbage');
+    writeFileSync(join(w.root, 'trunc.ttf'), Buffer.from([0, 1, 0, 0]));
+    expect(fontGlyph(join(w.root, 'x.ttf'), 65)).toBeNull();
+    expect(fontGlyph(join(w.root, 'trunc.ttf'), 65)).toBeNull();
+  });
+});
+
+import { tmpdir } from 'node:os';
+import { renderPreview } from '../src/svg';
+const tmpdirFor = () => tmpdir();

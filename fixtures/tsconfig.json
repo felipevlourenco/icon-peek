@@ -1,0 +1,9 @@
+{
+  "compilerOptions": {
+    // aliases like the ones IconPeek resolves for `@/…` imports
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["./src/*"],
+    },
+  },
+}

@@ -17,7 +17,7 @@
 
 - **Works on what you already write:** `<SearchIcon />`, `<Icon name="search" />`, `<img>` tags pointing at an SVG, `<use href="sprite.svg#id">`, inline `<svg>`, `<i class="fa-solid fa-house">`.
 - **Reads your real icon sources:** local `.svg` files, `lucide-react`, `react-icons`, `@heroicons/react`, `@mui/icons-material`, Font Awesome, Bootstrap Icons and Material Icons.
-- **Understands your own `<Icon name="…" />`:** follows the import to the component and finds the name-to-icon mapping (object map, `switch`, or a folder of SVGs). A setting covers the rest.
+- **Understands your own `<Icon name="…" />`:** follows the import (including `@/` aliases from `tsconfig.json`) to the component and finds the name-to-icon mapping (object map, `switch`, a folder of SVGs, or a `.ttf` icon font). A setting covers the rest.
 - **Never lies:** if an icon can't be resolved with confidence there is no hover at all. No placeholders, no wrong icons.
 - **Safe:** static parsing only. Nothing from your workspace or `node_modules` is ever executed, and every SVG is sanitized first.
 - **Readable on any theme:** the icon is drawn on a neutral chip with a fixed dark color.
@@ -49,6 +49,7 @@ Then open any file in a supported language and hover an icon tag. There is nothi
 | `@heroicons/react` | `…/24/outline`, `…/24/solid`, `…/20/solid`, `…/16/solid`. |
 | `@mui/icons-material` | `@mui/icons-material/Search` or `{ Search } from '@mui/icons-material'`, including multi-element icons. |
 | Your own `<Icon name="…" />` | An object map `name: Identifier`, `switch`/`case 'name'`, or a path template (`` `./icons/${name}.svg` ``, `'./icons/' + name + '.svg'`, `import.meta.glob('./icons/*.svg')`). Identifiers are followed to their own import, so the map can point at SVG files or any supported library. Fallback: `iconpeek.nameToFolder`. |
+| Your own icon font (`.ttf`) | A component built with `createIconSet(glyphMap, 'family', font)` (for example `@expo/vector-icons`) and a name-to-character map: `cross: 'F'`, `'\ue900'`, or `0xe900`, in the component or in a `.json` file next to it. IconPeek reads the glyph outline straight from the font file and draws it. TrueType (`.ttf`) only; multi-character values (ligatures) show nothing. |
 | Inline `<svg>` | Hover the `<svg …>` opening tag. Dynamic geometry or `{children}` inside means no hover. |
 | Icon fonts | Font Awesome (`fa-solid fa-house`, `fas`, `far`, `fab`) and Bootstrap Icons (`bi bi-house`) via their SVG sources, and Material Icons ligatures (`<span class="material-icons">search</span>`, plus `-outlined`, `-round`, `-sharp`, `-two-tone`) via `@mui/icons-material`. Only when that package is installed in the workspace. |
 
@@ -83,7 +84,8 @@ Example, for an `<Icon name="…">` component whose icons live in `src/assets/ic
 
 ## Known limitations
 
-- Path aliases (`@/assets/x.svg`, tsconfig `paths`) are not resolved. Barrel re-exports and your own components that merely wrap an `<svg>` are not followed.
+- Aliases come from the nearest `tsconfig.json` / `jsconfig.json` (`paths`, `baseUrl`, relative `extends`). Aliases that exist only in a Babel or bundler config are not resolved. Barrel re-exports and your own components that merely wrap an `<svg>` are not followed.
+- Icon fonts: `.otf` (CFF outlines), `.woff` and `.woff2` are not read; glyphs that use point-matching composites show nothing.
 - Yarn PnP is not supported. Only `file:` documents work.
 - Dynamic names or props (`name={x}`), JSX expressions inside inline SVG, and `<use href="#id">` into the same document show nothing.
 - Font Awesome legacy aliases (`fa-home`) and Pro-only styles (`fa-light`, `fa-thin`, `fa-duotone`) show nothing. Material Symbols are a different glyph set and are not mapped. Ligatures starting with a digit (`3d_rotation`) are not mapped.

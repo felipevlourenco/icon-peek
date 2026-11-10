@@ -1,9 +1,21 @@
 {
   "iconpeek.iconComponentPatterns": {
-    "Icon": ["name", "icon"],
-    "SwitchIcon": ["name"],
-    "FolderIcon": ["name"],
-    "LegacyIcon": ["name"]
+    "Icon": [
+      "name",
+      "icon"
+    ],
+    "SwitchIcon": [
+      "name"
+    ],
+    "FolderIcon": [
+      "name"
+    ],
+    "LegacyIcon": [
+      "name"
+    ],
+    "GlyphIcon": [
+      "name"
+    ]
   },
   "iconpeek.nameToFolder": {
     "LegacyIcon": "src/assets/icons"

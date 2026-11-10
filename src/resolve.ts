@@ -1,6 +1,8 @@
 import { statSync } from 'node:fs';
 import { basename, dirname, extname, isAbsolute, join, relative, resolve } from 'node:path';
+import { aliasBases } from './alias';
 import { readText } from './cache';
+import { fontGlyph } from './font';
 import {
   bootstrapIcon, fontAwesomeIcon, libraryIcon, loadSvg, materialIcon, type Found,
 } from './libs';
@@ -91,14 +93,14 @@ function locate(tag: Tag, req: Request, c: Ctx): Found | null {
 // ---------------------------------------------------------------- files
 
 /** Resolve an asset path written in source: relative to the file, else workspace root, else public/. */
-function resolveAsset(spec: string, fromFile: string, c: Ctx, ext = '.svg'): string | null {
-  const clean = spec.replace(/[?#].*$/, '');
-  if (extname(clean).toLowerCase() !== ext) return null;
+function resolveAsset(spec: string, fromFile: string, c: Ctx, exts = ['.svg']): string | null {
+  const clean = spec.replace(/[?#][^/]*$/, '');
+  if (!exts.includes(extname(clean).toLowerCase())) return null;
   const cands: string[] = [];
   if (clean.startsWith('.')) cands.push(resolve(dirname(fromFile), clean));
   else if (clean.startsWith('/')) for (const r of c.roots) cands.push(join(r, 'public', clean), join(r, clean));
   else {
-    cands.push(resolve(dirname(fromFile), clean));
+    cands.push(...aliasBases(clean, fromFile), resolve(dirname(fromFile), clean));
     for (const r of c.roots) cands.push(join(r, clean), join(r, 'public', clean));
   }
   return cands.find(isFile) ?? null;
@@ -208,9 +210,10 @@ function customIcon(tag: Tag, props: string[], imports: Binding[], req: Request,
 function componentSource(name: string, imports: Binding[], req: Request, c: Ctx): { file: string; text: string } | null {
   const b = imports.find((x) => x.local === name);
   if (!b) return new RegExp(`\\b(?:function|const|class)\\s+${name}\\b`).test(req.text) ? { file: req.file, text: req.text } : null;
-  if (!b.source.startsWith('.')) return null; // from node_modules: not our component
-  const base = resolve(dirname(req.file), b.source.replace(/[?#].*$/, ''));
-  const file = [base, ...CODE_EXT.map((e) => base + e), ...CODE_EXT.map((e) => join(base, 'index' + e))].find(isFile);
+  // relative, or an alias from tsconfig/jsconfig; anything else comes from node_modules: not our component
+  const spec = b.source.replace(/[?#][^/]*$/, '');
+  const bases = spec.startsWith('.') ? [resolve(dirname(req.file), spec)] : aliasBases(spec, req.file);
+  const file = bases.flatMap((base) => [base, ...CODE_EXT.map((e) => base + e), ...CODE_EXT.map((e) => join(base, 'index' + e))]).find(isFile);
   const text = file && extname(file) !== '' ? readText(file, COMPONENT_MAX) : null;
   return text ? { file: file!, text } : null;
 }
@@ -221,14 +224,14 @@ const esc = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 function fromComponent(src: string, file: string, name: string, c: Ctx): Found | null {
   const imports = parseImports(src);
   // value after `name:` / `case 'name':` -> `Ident`, `<Ident`, `() => <Ident`, or a quoted string
-  const V = String.raw`(?:\(\s*\)\s*=>\s*)?\(?\s*(?:(<)?\s*([A-Za-z_$][\w$.]*)|'([^'\n]*)'|"([^"\n]*)")`;
+  const V = String.raw`(?:\(\s*\)\s*=>\s*)?\(?\s*(?:(<)?\s*([A-Za-z_$][\w$.]*)|'([^'\n]*)'|"([^"\n]*)"|(0[xX][\da-fA-F]+|\d+))`;
   const keys = [
     new RegExp(String.raw`(?:^|[\s,{(])['"]?${esc(name)}['"]?\s*:\s*${V}`, 'g'),
     new RegExp(String.raw`\bcase\s+['"]${esc(name)}['"]\s*:\s*(?:return\s*)?${V}`, 'g'),
   ];
   for (const re of keys) {
     for (const m of src.matchAll(re)) {
-      const [, lt, ident, s1, s2] = m;
+      const [, lt, ident, s1, s2, num] = m;
       const str = s1 ?? s2;
       let f: Found | null = null;
       if (lt && ident === 'svg') {
@@ -243,9 +246,24 @@ function fromComponent(src: string, file: string, name: string, c: Ctx): Found |
           const node = parseMarkup(str, str.indexOf('<'), false);
           f = node && { node, name, source: rel(file, c) };
         } else if (/\.svg$/i.test(str)) f = svgFile(resolveAsset(str, file, c), c, name);
-      }
+        else f = glyphIcon(str, src, imports, file, name, c);
+      } else if (num) f = glyphIcon(Number(num), src, imports, file, name, c);
       if (f) return f;
     }
+  }
+  // `{ "name": 59648 }` glyph maps kept in a json file next to the font
+  for (const b of imports) {
+    if (!/\.json(?:[?#].*)?$/i.test(b.source)) continue;
+    const jf = resolveAsset(b.source, file, c, ['.json']);
+    const text = jf && readText(jf, 500_000);
+    let val: unknown;
+    try {
+      val = text ? (JSON.parse(text) as Record<string, unknown>)[name] : undefined;
+    } catch {
+      continue;
+    }
+    const f = typeof val === 'string' || typeof val === 'number' ? glyphIcon(val, src, imports, file, name, c) : null;
+    if (f) return f;
   }
   // folder of svgs named after the prop: `./icons/${name}.svg`, './icons/' + name + '.svg', import.meta.glob('./icons/*.svg')
   const t1 = /([`'"])([^`'"$\n]*)\$\{[^}]*\}([^`'"$\n]*\.svg)(?:\?[^`'"\n]*)?\1/.exec(src);
@@ -267,4 +285,33 @@ function svgInDir(dir: string, name: string, c: Ctx): Found | null {
     if (f) return f;
   }
   return null;
+}
+
+// ---------------------------------------------------------------- icon fonts defined by the project (createIconSet + .ttf)
+
+/** The one .ttf/.otf the component imports (or the one passed as createIconSet's 3rd argument). */
+function fontFile(src: string, imports: Binding[], file: string, c: Ctx): string | null {
+  let fonts = imports.filter((b) => /\.(?:ttf|otf)(?:[?#].*)?$/i.test(b.source));
+  if (fonts.length > 1) {
+    const arg = /createIconSet\w*\(\s*[^,]+,\s*[^,]+,\s*([A-Za-z_$][\w$]*)/.exec(src)?.[1];
+    fonts = fonts.filter((b) => b.local === arg);
+  }
+  return fonts.length === 1 ? resolveAsset(fonts[0].source, file, c, ['.ttf', '.otf']) : null;
+}
+
+/** Glyph map value (a character, `\ue900`, or a code point number) -> the glyph drawn from the component's font. */
+function glyphIcon(value: string | number, src: string, imports: Binding[], file: string, name: string, c: Ctx): Found | null {
+  let cp: number | undefined;
+  if (typeof value === 'number') cp = value;
+  else {
+    const decoded = value
+      .replace(/\\u\{([\da-fA-F]+)\}/g, (_, h: string) => String.fromCodePoint(parseInt(h, 16)))
+      .replace(/\\u([\da-fA-F]{4})/g, (_, h: string) => String.fromCharCode(parseInt(h, 16)))
+      .replace(/\\x([\da-fA-F]{2})/g, (_, h: string) => String.fromCharCode(parseInt(h, 16)));
+    const chars = Array.from(decoded);
+    cp = chars.length === 1 ? chars[0].codePointAt(0) : undefined; // 'A1' would be a ligature: not drawn
+  }
+  const font = cp === undefined ? null : fontFile(src, imports, file, c);
+  const node = font && fontGlyph(font, cp!);
+  return node ? { node, name, source: rel(font!, c) } : null;
 }

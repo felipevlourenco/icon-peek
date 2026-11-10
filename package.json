@@ -2,7 +2,7 @@
   "name": "icon-peek",
   "displayName": "IconPeek - Icon Hover Preview",
   "description": "See the rendered icon in the hover tooltip for icon components, <svg>, <img src=*.svg> and icon-font tags.",
-  "version": "0.2.1",
+  "version": "0.3.0",
   "publisher": "felipelourenco",
   "icon": "images/icon.png",
   "license": "MIT",

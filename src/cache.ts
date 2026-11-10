@@ -50,6 +50,16 @@ export function cacheSize(): number {
   return store.size;
 }
 
+/** Read a binary file unless it is missing, not a regular file, or over `maxBytes`. */
+export function readBytes(file: string, maxBytes: number): Buffer | null {
+  try {
+    const st = statSync(file);
+    return st.isFile() && st.size <= maxBytes ? readFileSync(file) : null;
+  } catch {
+    return null;
+  }
+}
+
 /** Read a text file unless it is missing, not a regular file, or over `maxBytes`. */
 export function readText(file: string, maxBytes: number): string | null {
   try {

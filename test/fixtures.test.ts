@@ -75,6 +75,13 @@ const rows: [string, string, string | null][] = [
   ['src/05-not-icons.tsx', '<Button variant', null],
   ['src/05-not-icons.tsx', '<Panel title', null],
   ['src/05-not-icons.tsx', '<span>plain', null],
+  // 7. project icon font (.ttf glyphs, `@/` alias from tsconfig)
+  ['src/07-glyph-font.tsx', '<GlyphIcon name="cross"', '<path d="M'],
+  ['src/07-glyph-font.tsx', '<GlyphIcon name="camera"', '<path d="M'],
+  ['src/07-glyph-font.tsx', '<GlyphIcon name="search"', '<path d="M'],
+  ['src/07-glyph-font.tsx', '<GlyphIcon name="menu"', '<path d="M'],
+  ['src/07-glyph-font.tsx', '<GlyphIcon name="scanner"', null],
+  ['src/07-glyph-font.tsx', '<GlyphIcon name="missing"', null],
   // 6. other languages
   ['src/06-frameworks/Card.vue', '<StarIcon />', 'M12 2l3.09 6.26'],
   ['src/06-frameworks/Card.vue', '<i class="bi bi-house"', 'M8.707 1.5'],
