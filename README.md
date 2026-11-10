@@ -34,7 +34,7 @@ Languages: `typescriptreact`, `javascriptreact`, `html`, `vue`, `svelte`, `astro
 Install **IconPeek** from the Extensions view (`Ctrl+Shift+X` / `Cmd+Shift+X`), or from the command line:
 
 ```bash
-code --install-extension felipelourenco.iconpeek
+code --install-extension felipelourenco.icon-peek
 ```
 
 Then open any file in a supported language and hover an icon tag. There is nothing to configure for the common cases.
