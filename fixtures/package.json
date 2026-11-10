@@ -1,0 +1,16 @@
+{
+  "name": "iconpeek-fixtures",
+  "private": true,
+  "version": "0.0.0",
+  "description": "Demo workspace for IconPeek. Run `npm install` here once.",
+  "dependencies": {
+    "@fortawesome/fontawesome-free": "*",
+    "@heroicons/react": "*",
+    "@mui/icons-material": "*",
+    "@mui/material": "*",
+    "bootstrap-icons": "*",
+    "lucide-react": "*",
+    "react": "*",
+    "react-icons": "*"
+  }
+}

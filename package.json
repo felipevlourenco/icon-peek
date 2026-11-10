@@ -1,0 +1,107 @@
+{
+  "name": "iconpeek",
+  "displayName": "IconPeek",
+  "description": "See the rendered icon in the hover tooltip for icon components, <svg>, <img src=*.svg> and icon-font tags.",
+  "version": "0.1.0",
+  "publisher": "local-dev",
+  "license": "UNLICENSED",
+  "private": true,
+  "engines": {
+    "vscode": "^1.145.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "main": "./dist/extension.js",
+  "capabilities": {
+    "untrustedWorkspaces": { "supported": true },
+    "virtualWorkspaces": false
+  },
+  "activationEvents": [
+    "onLanguage:typescriptreact",
+    "onLanguage:javascriptreact",
+    "onLanguage:html",
+    "onLanguage:vue",
+    "onLanguage:svelte",
+    "onLanguage:astro"
+  ],
+  "contributes": {
+    "configuration": {
+      "title": "IconPeek",
+      "properties": {
+        "iconpeek.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show the rendered icon when hovering an icon tag."
+        },
+        "iconpeek.previewSize": {
+          "type": "number",
+          "default": 48,
+          "minimum": 16,
+          "maximum": 256,
+          "description": "Preview box size in px. The icon is scaled to fit, keeping its aspect ratio."
+        },
+        "iconpeek.languages": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": [
+            "typescriptreact",
+            "javascriptreact",
+            "html",
+            "vue",
+            "svelte",
+            "astro"
+          ],
+          "description": "Language ids where IconPeek is active. Reload the window after changing."
+        },
+        "iconpeek.iconComponentPatterns": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "default": {
+            "Icon": [
+              "name",
+              "icon"
+            ]
+          },
+          "description": "Components that take an icon name, mapped to the props holding it. Example: { \"Icon\": [\"name\", \"icon\"] }."
+        },
+        "iconpeek.nameToFolder": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          },
+          "default": {},
+          "description": "Fallback when an icon component's name map cannot be read statically. Key is `Component` or `Component.prop`; value is the folder (workspace-relative or absolute) holding `<name>.svg` files. Example: { \"Icon\": \"src/assets/icons\" }."
+        },
+        "iconpeek.maxSvgBytes": {
+          "type": "number",
+          "default": 200000,
+          "minimum": 1024,
+          "description": "Files larger than this are skipped (no hover)."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "compile": "tsc --noEmit && node esbuild.mjs",
+    "watch": "node esbuild.mjs --watch",
+    "dev": "npm run compile && code --new-window --extensionDevelopmentPath=\"$PWD\" fixtures",
+    "test": "vitest run",
+    "package": "vsce package"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.6",
+    "@types/vscode": "^1.145.0",
+    "@vscode/vsce": "^4.1.0",
+    "esbuild": "^0.28.2",
+    "typescript": "^7.0.2",
+    "vitest": "^5.1.0"
+  }
+}
