@@ -2,16 +2,21 @@
   "name": "iconpeek",
   "displayName": "IconPeek",
   "description": "See the rendered icon in the hover tooltip for icon components, <svg>, <img src=*.svg> and icon-font tags.",
-  "version": "0.1.0",
-  "publisher": "local-dev",
-  "license": "UNLICENSED",
-  "private": true,
+  "version": "0.2.0",
+  "publisher": "felipelourenco",
+  "icon": "images/icon.png",
+  "license": "MIT",
+  "repository": { "type": "git", "url": "https://github.com/felipevlourenco/icon-peek.git" },
   "engines": {
     "vscode": "^1.145.0"
   },
   "categories": [
+    "Visualization",
     "Other"
   ],
+  "keywords": ["icon", "svg", "hover", "preview", "lucide", "react-icons", "heroicons", "font awesome"],
+  "homepage": "https://github.com/felipevlourenco/icon-peek#readme",
+  "bugs": { "url": "https://github.com/felipevlourenco/icon-peek/issues" },
   "main": "./dist/extension.js",
   "capabilities": {
     "untrustedWorkspaces": { "supported": true },
